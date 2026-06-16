@@ -1,4 +1,4 @@
-<picture><img width="256" height="256" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture>**Clone Hero Midi 2 Chart**<picture><img width="256" height="256" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture>
+<picture><img width="32" height="32" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture>**Clone Hero Midi 2 Chart**<picture><img width="32" height="32" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture>
 
 Clone Hero Midi 2 Chart will automatically convert all .mid/midi to a notes.chart file and send the .mid/midi file to the Recycle Bin for your entire Clone Hero songs directory
 
