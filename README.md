@@ -22,7 +22,7 @@ On the initial run, you will be prompted to select your Clone Hero songs directo
 
 https://github.com/lililwavezlilil
 
-***Features & Functionality:***
+**Features & Functionality:**
 
 • Searches through your Clone Hero songs folder/directory for any .mid/midi file(s) and automatically converts all of them to a notes.chart file
 
