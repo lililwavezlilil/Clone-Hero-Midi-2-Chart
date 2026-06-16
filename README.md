@@ -20,7 +20,7 @@ On the initial run, you will be prompted to select your Clone Hero songs directo
 
 **All EXE files can be found on my GitHub here:**
 
-*https://github.com/lililwavezlilil*
+https://github.com/lililwavezlilil
 
 ***Features & Functionality:***
 
