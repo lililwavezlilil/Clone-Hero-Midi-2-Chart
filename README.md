@@ -18,7 +18,11 @@ All EXE files can be found on my GitHub here:
 https://github.com/lililwavezlilil
 
 Features & Functionality:
+
 •Searches through your Clone Hero songs folder/directory for any .mid/midi file(s) and automatically converts all of them to a notes.chart file
+
 •Sends the .mid/midi file(s) to the Recycling Bin for easy recovery
+
 •When converted, the notes.chart file(s) are automatically placed in the same folder the .mid/midi file(s) were converted from
+
 •When converted, the notes.chart file(s) retain the exact same Guitar, Bass, Rhythm, Keys, Star Power, etc. chart from the .mid/midi file(s)
