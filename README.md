@@ -31,3 +31,6 @@ https://github.com/lililwavezlilil
 • When converted, the notes.chart file(s) are automatically placed in the same folder the .mid/midi file(s) were converted from
 
 • When converted, the notes.chart file(s) retain the exact same Guitar, Bass, Rhythm, Keys, Star Power, etc. chart from the .mid/midi file(s)
+
+<img width="3840" height="2160" alt="Screenshot (381)" src="https://github.com/user-attachments/assets/7150a422-0189-4e8e-af59-556a71a70778" />
+<img width="3840" height="2160" alt="Screenshot (382)" src="https://github.com/user-attachments/assets/52ea93ca-54e1-42af-8ed6-d4fbc32f3734" />
