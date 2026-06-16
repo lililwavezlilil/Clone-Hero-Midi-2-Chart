@@ -1,4 +1,4 @@
-<picture><img width="32" height="32" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture>**Clone Hero Midi 2 Chart**<picture><img width="32" height="32" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture>
+<picture><img width="32" height="32" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/b875f282-b857-419b-b598-ddef91f51a59" /><picture>**Clone Hero Midi 2 Chart**<picture><img width="32" height="32" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/b875f282-b857-419b-b598-ddef91f51a59" /><picture>
 
 Clone Hero Midi 2 Chart will automatically convert all .mid/midi to a notes.chart file and send the .mid/midi file to the Recycle Bin for your entire Clone Hero songs directory
 
@@ -34,4 +34,4 @@ https://github.com/lililwavezlilil
 
 <img width="3840" height="2160" alt="Screenshot (381)" src="https://github.com/user-attachments/assets/7150a422-0189-4e8e-af59-556a71a70778" />
 <img width="3840" height="2160" alt="Screenshot (382)" src="https://github.com/user-attachments/assets/52ea93ca-54e1-42af-8ed6-d4fbc32f3734" />
-<div align="center"><picture><img width="256" height="256" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/ac724300-665a-4a6a-90a0-2ecc5eda894c" /><picture><div>
+<div align="center"><picture><img width="256" height="256" alt="Clone Hero Midi 2 Chart Icon 2" src="https://github.com/user-attachments/assets/b875f282-b857-419b-b598-ddef91f51a59" /><picture><div>
