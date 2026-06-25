@@ -1,63 +1,175 @@
 import os
 import sys
+import io
 import mido
 import tkinter as tk
 from tkinter import filedialog
 from send2trash import send2trash
 
-# Enable ANSI colors for Windows 10/11 console
-if os.name == 'nt':
-    os.system('')
+# --- CUSTOM RESCUE PARSER ---
+# A bulletproof, pure-Python fallback parser that ignores structural errors, 
+# proprietary GH/RB bytes, and EOF padding that cause mido to crash.
+
+class MockMessage:
+    def __init__(self, m_type, time=0, **kwargs):
+        self.type = m_type
+        self.time = time
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+class RescueMidiReader:
+    def __init__(self, filepath):
+        self.tracks = []
+        self.ticks_per_beat = 480
+        self.error = None
+        self._load(filepath)
+        
+    def _load(self, filepath):
+        try:
+            with open(filepath, 'rb') as f:
+                data = f.read()
+        except Exception as e:
+            self.error = str(e)
+            return
+            
+        if len(data) < 14 or not data.startswith(b'MThd'):
+            self.error = "Invalid header"
+            return
+            
+        self.ticks_per_beat = int.from_bytes(data[12:14], 'big')
+        
+        idx = 14
+        while idx + 8 <= len(data):
+            ctype = data[idx:idx+4]
+            if not ctype.isalpha():
+                break # We hit console padding/garbage
+                
+            clen = int.from_bytes(data[idx+4:idx+8], 'big')
+            
+            if ctype == b'MTrk':
+                safe_len = min(clen, len(data) - (idx + 8))
+                t_data = data[idx+8 : idx+8+safe_len]
+                self.tracks.append(self._parse_track(t_data))
+                
+            idx += 8 + clen
+            
+    def _parse_track(self, data):
+        track = []
+        idx = 0
+        running_status = None
+        
+        def read_vlv():
+            nonlocal idx
+            val = 0
+            while idx < len(data):
+                b = data[idx]
+                idx += 1
+                val = (val << 7) | (b & 0x7f)
+                if not (b & 0x80): break
+            return val
+            
+        while idx < len(data):
+            try:
+                delta = read_vlv()
+                if idx >= len(data): break
+                
+                b = data[idx]
+                if b >= 0x80:
+                    status = b
+                    idx += 1
+                    running_status = status
+                else:
+                    status = running_status
+                    
+                if status is None:
+                    idx += 1
+                    continue
+                    
+                cmd = status & 0xf0
+                
+                if cmd == 0x80:
+                    note = data[idx]
+                    vel = data[idx+1]
+                    idx += 2
+                    track.append(MockMessage('note_off', time=delta, note=note, velocity=0))
+                elif cmd == 0x90:
+                    note = data[idx]
+                    vel = data[idx+1]
+                    idx += 2
+                    m_type = 'note_on' if vel > 0 else 'note_off'
+                    track.append(MockMessage(m_type, time=delta, note=note, velocity=vel))
+                elif cmd in (0xA0, 0xB0, 0xE0):
+                    idx += 2
+                elif cmd in (0xC0, 0xD0):
+                    idx += 1
+                elif status == 0xFF:
+                    mtype = data[idx]
+                    idx += 1
+                    mlen = read_vlv()
+                    mdata = data[idx:idx+mlen]
+                    idx += mlen
+                    
+                    if mtype == 0x51 and len(mdata) == 3:
+                        tempo = int.from_bytes(mdata, 'big')
+                        track.append(MockMessage('set_tempo', time=delta, tempo=tempo))
+                    elif mtype == 0x58 and len(mdata) >= 2:
+                        track.append(MockMessage('time_signature', time=delta, numerator=mdata[0], denominator=2**mdata[1]))
+                    elif mtype in (0x01, 0x05):
+                        try: txt = mdata.decode('utf-8')
+                        except: 
+                            try: txt = mdata.decode('latin1')
+                            except: txt = ""
+                        track.append(MockMessage('text', time=delta, text=txt))
+                    elif mtype == 0x03:
+                        try: txt = mdata.decode('utf-8')
+                        except: 
+                            try: txt = mdata.decode('latin1')
+                            except: txt = ""
+                        track.append(MockMessage('track_name', time=delta, name=txt))
+                elif status == 0xF0 or status == 0xF7:
+                    slen = read_vlv()
+                    idx += slen
+                else:
+                    # Ignore GH proprietary 0xF_ bytes without crashing
+                    if status in (0xF1, 0xF3): idx += 1
+                    elif status == 0xF2: idx += 2
+                    
+            except Exception:
+                break # Salvage whatever valid events we parsed before hitting the corruption!
+                
+        return track
+# ------------------------------
+
+def setup_directory():
+    CONFIG_FILE = "CH_Settings.txt"
+    songs_directory = None
+
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
+            if lines:
+                songs_directory = lines[0].strip()
+
+    is_valid_dir = songs_directory and os.path.isdir(songs_directory)
+
+    if is_valid_dir:
+        return os.path.normpath(songs_directory)
+
+    print("\033[36mFirst time setup: Please select your Clone Hero songs folder\033[0m")
     
-    APP_TITLE = "Clone Hero Midi 2 Chart"
-if os.name == 'nt':
-    import ctypes
-    ctypes.windll.kernel32.SetConsoleTitleW(APP_TITLE)
-else:
-    sys.stdout.write(f'\033]0;{APP_TITLE}\007')
-    sys.stdout.flush()
-
-# ==========================================
-# CONFIGURATION & FIRST RUN SETUP
-# ==========================================
-CONFIG_FILE = "CH_Settings.txt"
-songs_directory = None
-
-# 1. Try to read the directory from the config file if it exists
-if os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-        lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
-        if lines:
-            songs_directory = lines[0].strip()
-
-# 2. Check if the directory we found actually exists
-is_valid_dir = songs_directory and os.path.isdir(songs_directory)
-
-if is_valid_dir:
-    print(f"\033[36mLoaded Songs directory from {CONFIG_FILE}:\033[0m")
-    print(f"\033[90m{songs_directory}\033[0m\n")
-
-# 3. If missing or invalid, prompt the user with the modern GUI
-if not is_valid_dir:
-    print("\033[36mFirst time setup: Please select your Clone Hero 'songs' folder from the popup window...\033[0m")
-    
-    # Initialize tkinter and hide the main background window
     root = tk.Tk()
     root.withdraw()
-    # Force the dialog to pop up in front of the console
     root.attributes('-topmost', True) 
     
-    songs_directory = filedialog.askdirectory(title="Select your Clone Hero 'songs' folder")
+    songs_directory = filedialog.askdirectory(title="Please select your Clone Hero songs folder")
+    root.destroy()
     
     if not songs_directory:
         print("\n\033[31mFolder selection cancelled. Exiting.\033[0m")
-        input("Press Enter to exit...")
-        exit()
+        sys.exit(0)
 
-    # Normalize path slashes for Windows
     songs_directory = os.path.normpath(songs_directory)
 
-    # 4. Generate the config file for Notepad editing later
     config_template = f"""# Clone Hero Midi 2 Chart Configuration
 # You can safely edit the path below using Notepad.
 # Just make sure it points to your actual Clone Hero Songs directory.
@@ -67,16 +179,10 @@ if not is_valid_dir:
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         f.write(config_template)
     print(f"\033[32mSaved! You can change this path anytime by editing {CONFIG_FILE} in Notepad.\033[0m\n")
-
-# Assign the validated directory to your original variable
-SONGS_DIRECTORY = songs_directory
-
-# ==========================================
-# CORE MIDI CONVERSION LOGIC
-# ==========================================
+    
+    return songs_directory
 
 def get_note_lane(note):
-    # Physical Playable Gems
     if 96 <= note <= 100: return ('Expert', note - 96)
     if note == 95: return ('Expert', 7) 
     if 84 <= note <= 88: return ('Hard', note - 84)
@@ -88,7 +194,6 @@ def get_note_lane(note):
     return (None, None)
 
 def get_modifier_zone(note):
-    # THE FIX: Swapped Force HOPO (+5) and Force Strum (+6) to match the true MIDI standard
     if note == 101: return ('Expert', 'HOPO')
     if note == 102: return ('Expert', 'STRUM')
     if note == 104: return ('Expert', 'TAP')
@@ -120,7 +225,6 @@ def is_in_zone(note_start, z_start, z_end, fuzz=2):
     return (z_start - fuzz) <= note_start <= (z_end + fuzz)
 
 def snap_and_quantize(notes, threshold=6):
-    # Snaps staggering human errors to guarantee perfect chords
     if not notes: return []
     notes.sort(key=lambda x: x[0])
     snapped = []
@@ -149,33 +253,29 @@ def calculate_1to1_toggles(notes_list, resolution, f_strum, f_hopo, f_tap):
     prev_tick = -99999
     prev_lanes = []
     
-    # THE FIX: Updated to precisely match Moonscraper's native HOPO calculation math (170/480 ticks)
     hopo_threshold = (resolution * 170) / 480.0
     
     for tick in sorted_ticks:
         current_lanes = ticks[tick]
         is_chord = len(current_lanes) > 1
         
-        # 1. Calculate base game-engine state
         if is_chord:
             natural_state = "STRUM"
         elif not prev_lanes:
             natural_state = "STRUM"
         elif len(prev_lanes) == 1 and current_lanes[0] == prev_lanes[0]:
-            natural_state = "STRUM" # Identical repeating notes are naturally strums
+            natural_state = "STRUM" 
         elif (tick - prev_tick) <= hopo_threshold:
             natural_state = "HOPO"
         else:
             natural_state = "STRUM"
             
-        # 2. Check for Tap Modifiers 
         is_tap = False
         for (z_start, z_end) in f_tap:
             if is_in_zone(tick, z_start, z_end):
                 is_tap = True
                 break
                 
-        # 3. Apply Overrides (Most Recent Zone Wins)
         target_state = natural_state
         active_zone_start = -1
         
@@ -192,11 +292,8 @@ def calculate_1to1_toggles(notes_list, resolution, f_strum, f_hopo, f_tap):
                         active_zone_start = z_start
                         target_state = "STRUM"
                         
-        # 4. Generate Output Data
         for lane in current_lanes:
             length = lengths[(tick, lane)]
-            
-            # Micro-Sustain Stripper to remove dirty tails
             if length <= (resolution / 3.0):
                 length = 0
                 
@@ -214,11 +311,17 @@ def calculate_1to1_toggles(notes_list, resolution, f_strum, f_hopo, f_tap):
 
 def convert_midi_to_chart(midi_path, chart_path):
     try:
+        # Step 1: Try strict standard utf-8 mido parsing
         mid = mido.MidiFile(midi_path, clip=True, charset='utf-8')
-    except Exception as e:
-        print(f"  [!] Failed to read MIDI: {e}")
-        return False
-        
+    except Exception:
+        # Step 2: If mido throws ANY fit (EOFError, encoding, etc.), 
+        # instantly switch to the custom bulletproof Rescue Reader.
+        mid = RescueMidiReader(midi_path)
+        if mid.error:
+            print(f"  [!] Failed to read MIDI entirely: {mid.error}")
+            return False
+        print("  [*] Note: Rescued corrupted track via custom parser")
+            
     resolution = mid.ticks_per_beat
     sync_track = []
     events = []
@@ -389,10 +492,12 @@ def convert_midi_to_chart(midi_path, chart_path):
     return True
 
 def headless_batch():
-    print("Clone Hero Midi 2 Chart v1.0.1 initialized...\n")
+    print("Clone Hero Midi 2 Chart v1.0.2 initialized...\n")
     
-    if not os.path.exists(SONGS_DIRECTORY):
-        print(f"ERROR: Cannot find the folder '{SONGS_DIRECTORY}'\n")
+    SONGS_DIRECTORY = setup_directory()
+    
+    if not SONGS_DIRECTORY or not os.path.exists(SONGS_DIRECTORY):
+        print(f"ERROR: Cannot find the folder.\n")
         return
 
     count = 0
@@ -414,7 +519,7 @@ def headless_batch():
                         
     print(f"Done! Successfully converted {count} files.")
 
-if __name__ == "__main__":
+def run():
     try:
         headless_batch()
     except Exception as e:
@@ -425,4 +530,6 @@ if __name__ == "__main__":
         print("!"*40 + "\n")
     finally:
         print("\n" + "="*40)
-        input("Press Enter to close this window...")
+
+if __name__ == "__main__":
+    run()
