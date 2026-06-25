@@ -1,5 +1,8 @@
 ### **FULL CHANGELOG:**
 
+### ***v1.0.2***
+*• Added more conversion compatibility for older .mid/midi files*
+
 ### ***v1.0.1***
 *• Fixed terminal window tab from displaying the programs path instead of the application name*
 
